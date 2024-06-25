@@ -29,6 +29,10 @@ public_key: String?
 
 # How to compile to LSON
 ```bash
-lson compile config.kson
+lson compile -f config.kson
 ```
 
+# How to compile to JSON
+```bash
+lson compile -t json -f config.kson
+```
