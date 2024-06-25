@@ -14,7 +14,7 @@ function parse(file: string) {
         args.push("-f", file);
     }
 
-    const r = spawnSync(path, ["raw", "compile", "-t", "json"], {
+    const r = spawnSync(path, args, {
         stdio: "pipe"
     });
 
