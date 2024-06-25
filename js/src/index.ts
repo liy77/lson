@@ -6,17 +6,17 @@ const WORKING_PATH = process.cwd();
 function parse(content: string): string;
 function parse(file: string) {
     const path = joinPath(WORKING_PATH, "/bin/lson");
-    let r: SpawnSyncReturns<Buffer> | undefined;
+    const args = ["raw", "compile", "-t", "json"];
 
     if (!existsSync(file)) {
-        r = spawnSync(path, ["raw", "compile", "--text", file, "-t", "json"], {
-            stdio: "pipe"
-        });
+        args.push("--text", file);
     } else {
-        r = spawnSync(path, ["raw", "compile", "-f", file, "-t", "json"], {
-            stdio: "pipe"
-        });
+        args.push("-f", file);
     }
+
+    const r = spawnSync(path, ["raw", "compile", "-t", "json"], {
+        stdio: "pipe"
+    });
 
     if (r.status !== 0) {
         console.error(r.stderr.toString());
@@ -30,17 +30,17 @@ function parse(file: string) {
 function compile(content: string): string;
 function compile(file: string) {
     const path = joinPath(WORKING_PATH, "/bin/lson");
-    let r: SpawnSyncReturns<Buffer> | undefined;
+    const args = ["raw", "compile", "-t", "lson"];
 
     if (!existsSync(file)) {
-        r = spawnSync(path, ["raw", "compile", "--text", file, "-t", "lson"], {
-            stdio: "pipe"
-        });
+        args.push("--text", file);
     } else {
-        r = spawnSync(path, ["raw", "compile", "-f", file, "-t", "lson"], {
-            stdio: "pipe"
-        });
+        args.push("-f", file);
     }
+
+    const r = spawnSync(path, args, {
+        stdio: "pipe"
+    });
 
     if (r.status !== 0) {
         console.error(r.stderr.toString());
