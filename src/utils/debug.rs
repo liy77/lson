@@ -5,3 +5,7 @@ pub fn debug(verbose: bool, message: &str) {
         println!("{} {}", "debug".blue(), message);
     }
 }
+
+pub fn warn(message: &str) {
+    println!("{} {}", "warning".yellow(), message);
+}

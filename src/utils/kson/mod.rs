@@ -1,12 +1,14 @@
+use std::env;
 use std::fs::File;
 use std::io::{Result, Read};
 use std::process::exit;
 use colored::Colorize;
+use dotenvy::dotenv;
 use regex::Regex;
 
 use crate::utils::kson;
 
-use super::debug::debug;
+use super::debug::{debug, warn};
 
 pub mod kmodel;
 
@@ -19,6 +21,7 @@ pub enum KSONItem {
 pub struct KSON {
     pub properties: Vec<KSONItem>,
     pub _sections: Vec<String>,
+    pub env_vars: Vec<String>,
 }
 
 impl KSON {
@@ -26,6 +29,7 @@ impl KSON {
         KSON {
             properties,
             _sections: vec![],
+            env_vars: vec![],
         }
     }
 
@@ -107,6 +111,12 @@ pub fn read_file(file_path: &str, kmodel_file: Option<&String>, verbose: bool) -
 }
 
 pub fn read(text: &str, kmodel_file: Option<&String>, verbose: bool) -> Vec<KSONItem> {
+    let dotenv = dotenv();
+
+    if dotenv.is_err() {
+        warn(&format!("{}: {}. If you are using the {} keyword, an error may occur", "MISSING_ENV_FILE", dotenv.err().unwrap(), "@env".bold().black()));
+    }
+
     let mut kson = KSON::new(vec![]);
     let mut ksonmodel: Option<kmodel::KModel> = None;
     let kmodel_string = kson::kmodel::get_kmodel_colored();
@@ -139,6 +149,17 @@ pub fn read(text: &str, kmodel_file: Option<&String>, verbose: bool) -> Vec<KSON
             ));
         }
 
+        if line.starts_with("@env") {
+            let env_var = line[4..].trim();
+            let env_var = env_var.trim_start_matches('(').trim_end_matches(')');
+            kson.env_vars.push(env_var.to_string());
+            let env_var = env::var(env_var).expect(&format!("{}: {}", "MISSING_ENV".on_bright_red(), env_var));
+
+            debug(verbose, &format!("Adding env var: {} = {}", env_var.bold().black(), env_var.red()));
+
+            continue;
+        }
+
         // Skip comments
         if line.trim().starts_with('#') {
             continue;
@@ -154,12 +175,19 @@ pub fn read(text: &str, kmodel_file: Option<&String>, verbose: bool) -> Vec<KSON
             }
 
             kson.push_section(section);
-        } else if let Some((key, value)) = parse_property_line(&line) {
+        } else if let Some((key, mut value)) = parse_property_line(&line) {
             if kson._sections.len() > 0 {
                 if !line.starts_with("   ".repeat(kson._sections.len()).as_str()) {
                     debug(verbose, &format!("Exiting from section: {}", kson.last_section().unwrap().bold().bright_red()));
                     kson.pop_section();
                 }
+            }
+
+            if kson.env_vars.contains(&value.to_string()) {
+                let env_var = env::var(&value).expect(&format!("{}: {}", "MISSING_ENV".on_bright_red(), value));
+                debug(verbose, &format!("{}: {} = {}", "Replacing env var".yellow(), value.red(), env_var.red()));
+
+                value = format!("\"{}\"", env_var);
             }
             
             if line.starts_with(&key) && kson._sections.len() > 0 {

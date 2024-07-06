@@ -67,7 +67,7 @@ fn main() {
                 .required_unless_present("text")
             )
             .arg(
-                arg!(--text "The kson text to compile")
+                arg!(--text <TEXT> "The kson text to compile")
                 .required_unless_present("file")
             )
             .arg(
@@ -115,28 +115,47 @@ fn main() {
 
     match matches.subcommand() {
         Some(("compile", arg_m)) => {
-            let file: &String = arg_m.get_one::<String>("FILE").unwrap();
+            let file = arg_m.get_one::<String>("file");
+            let text = arg_m.get_one::<String>("text");
+            let output_type = arg_m.get_one::<String>("output_type").unwrap();
+            let kmodel = arg_m.get_one::<String>("kmodel");
+
+            if output_type != "json" && output_type != "lson" {
+                eprintln!("Invalid output type: {}, select json or lson", output_type);
+                exit(1);
+            }
 
             let out = arg_m.get_one::<String>("output");
 
             let out = if out.is_some() {
                 out.unwrap().to_string()
             } else {
-                let r = format!("{}.lson", file.trim_end_matches(".kson"));
+                if !file.is_some() && !text.is_some() {
+                    eprintln!("Output file is required when no file is provided.");
+                    exit(1);
+                }
+
+                let r = format!("{}.{}", file.unwrap().trim_end_matches(".kson"), output_type);
                 r
             };
 
-            let output_type = arg_m.get_one::<String>("output_type").unwrap();
-
             if output_type == "lson" {
-                let lson_result = utils::lson::encrypt_file(file).unwrap();
+                let lson_result = if file.is_some() {
+                    utils::lson::encrypt_file(file.unwrap()).unwrap()
+                } else {
+                    utils::lson::encrypt(text.unwrap())
+                };                
+                
                 let mut lson_file = File::create(out.clone()).unwrap();
 
                 lson_file.write_all(lson_result.as_bytes()).unwrap();
                 println!("{}: {}", "Wrote LSON to".green(), out.yellow());
             } else {
-                let kmodel = arg_m.get_one::<String>("kmodel");
-                let json_result = utils::kson::kson_items_to_json(utils::kson::read(file, kmodel, verbose));
+                let json_result = if file.is_some() {
+                    utils::kson::kson_items_to_json(utils::kson::read_file(file.unwrap(), kmodel, verbose).unwrap())
+                } else {
+                    utils::kson::kson_items_to_json(utils::kson::read(text.unwrap(), kmodel, verbose))
+                };
                 let mut json_file = File::create(out.clone()).unwrap();
 
                 json_file.write_all(json_result.as_bytes()).unwrap();
@@ -144,7 +163,7 @@ fn main() {
             }
         },
         Some(("compile_json", arg_m)) => {
-            let _file = arg_m.get_one::<String>("FILE").unwrap();
+            let _file = arg_m.get_one::<String>("file").unwrap();
         },
         Some(("raw", arg_m)) => {
             let cmd = arg_m.subcommand();
@@ -170,8 +189,8 @@ fn main() {
                             utils::kson::kson_items_to_json(utils::kson::read_file(file.unwrap(), kmodel, verbose).unwrap())
                         } else {
                             utils::kson::kson_items_to_json(utils::kson::read(text.unwrap(), kmodel, verbose))
-                        }
-                        ;
+                        };
+
                         println!("{}", json_result);
                     }
                 }
@@ -180,7 +199,7 @@ fn main() {
             }
         },
         Some(("parse", arg_m)) => {
-            let file = arg_m.get_one::<String>("FILE").unwrap();
+            let file = arg_m.get_one::<String>("file").unwrap();
             let kson_result = utils::lson::decrypt_file(file).unwrap();
             
             println!("{}\n{}", "PARSED DATA:".green(), kson_result);
