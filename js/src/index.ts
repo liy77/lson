@@ -3,9 +3,20 @@ import { existsSync } from "node:fs";
 import { join as joinPath } from "node:path";
 const WORKING_PATH = process.cwd();
 
+let BIN_PATH: string;
+
+if (process.platform === "win32") {
+    BIN_PATH = joinPath(WORKING_PATH, "win32", "lson.exe");
+} else if (process.platform === "linux") {
+    BIN_PATH = joinPath(WORKING_PATH, "linux", "lson");
+} else if (process.platform === "darwin") {
+    // TODO: Add support for darwin
+    throw new Error("Darwin is not supported yet"); 
+    BIN_PATH = joinPath(WORKING_PATH, "darwin", "lson"); // This is just a placeholder
+}
+
 function parse(content: string): string;
 function parse(file: string) {
-    const path = joinPath(WORKING_PATH, "/bin/lson");
     const args = ["raw", "compile", "-t", "json"];
 
     if (!existsSync(file)) {
@@ -14,7 +25,7 @@ function parse(file: string) {
         args.push("-f", file);
     }
 
-    const r = spawnSync(path, args, {
+    const r = spawnSync(BIN_PATH, args, {
         stdio: "pipe"
     });
 
@@ -29,7 +40,6 @@ function parse(file: string) {
 
 function compile(content: string): string;
 function compile(file: string) {
-    const path = joinPath(WORKING_PATH, "/bin/lson");
     const args = ["raw", "compile", "-t", "lson"];
 
     if (!existsSync(file)) {
@@ -38,7 +48,7 @@ function compile(file: string) {
         args.push("-f", file);
     }
 
-    const r = spawnSync(path, args, {
+    const r = spawnSync(BIN_PATH, args, {
         stdio: "pipe"
     });
 
