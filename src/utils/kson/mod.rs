@@ -215,7 +215,7 @@ pub fn read(text: &str, kmodel_file: Option<&String>, verbose: bool) -> Vec<KSON
 
                         if kt_value == "Any" {
                             if !any_warn_emitted {
-                                debug(verbose, &format!("{}: {} Use of Any type is not recommended", kmodel_string, "[WARN]".yellow()));
+                                warn(&format!("{} Use of Any type is not recommended", kmodel_string));
                                 any_warn_emitted = true;
                             }
 
