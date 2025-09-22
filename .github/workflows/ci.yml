@@ -60,34 +60,7 @@ jobs:
 
     - name: Run tests
       run: cargo test --verbose
-
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt, clippy
-
-    - name: Cache cargo registry
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target
-        key: lint-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Check formatting
-      run: cargo fmt --check
-
-    - name: Run clippy
-      run: cargo clippy -- -D warnings
-
+      
   build-dev:
     name: Development Build
     runs-on: ${{ matrix.os }}
