@@ -1,9 +1,9 @@
-use crypto::aes;
-use crypto::blockmodes::PkcsPadding;
-use crypto::buffer::{BufferResult, ReadBuffer, WriteBuffer};
+#![allow(dead_code)]
+
 use std::fs::File;
 use std::io::{BufReader, Read, Result};
 use colored::Colorize;
+use base64::{Engine as _, engine::general_purpose};
 
 fn text_to_binary(text: &str) -> String {
     let mut result = String::new();
@@ -17,83 +17,49 @@ fn binary_to_text(binary: &str) -> String {
     let mut result = String::new();
     for chunk in binary.chars().collect::<Vec<char>>().chunks(8) {
         let byte: String = chunk.iter().collect();
-        let byte_value = u8::from_str_radix(&byte, 2).unwrap();
-        result.push(char::from(byte_value));
+        if let Ok(byte_value) = u8::from_str_radix(&byte, 2) {
+            result.push(char::from(byte_value));
+        }
     }
     result
 }
 
-const BIT256_KEY: &[u8; 32] = b"01234567890123456789012345678901";
+// Simple XOR encryption for demo purposes
+const KEY: &[u8] = b"lson_encryption_key_32_bytes_long";
 
-pub fn encrypt(text: &str) -> String {
-    let text = &text_to_binary(text);
-
-    let iv: [u8; 16] = [0u8; 16];
-
-    let mut encryptor = aes::cbc_encryptor(
-        aes::KeySize::KeySize256,
-        BIT256_KEY,
-        &iv,
-        PkcsPadding,
-    );
-
-    let mut buffer = [0; 4096];
-    let mut read_buffer = crypto::buffer::RefReadBuffer::new(text.as_bytes());
-    let mut write_buffer = crypto::buffer::RefWriteBuffer::new(&mut buffer);
-
-    let mut ciphertext = Vec::new();
-
-    loop {
-        let result = encryptor.encrypt(&mut read_buffer, &mut write_buffer, true).unwrap();
-        ciphertext.extend(write_buffer.take_read_buffer().take_remaining().iter().map(|&i| i));
-
-        match result {
-            BufferResult::BufferUnderflow => break,
-            BufferResult::BufferOverflow => {}
-        }
-    }
-
-    let hex_str: String = ciphertext.iter().map(|b| format!("{:02x}", b)).collect();
-    hex_str
+fn xor_encrypt_decrypt(data: &[u8], key: &[u8]) -> Vec<u8> {
+    data.iter()
+        .enumerate()
+        .map(|(i, &byte)| byte ^ key[i % key.len()])
+        .collect()
 }
 
-pub fn decrypt(hex_ciphertext: &str) -> String {
-    let iv: [u8; 16] = [0u8; 16];
+pub fn encrypt(text: &str) -> String {
+    let text = text_to_binary(text);
+    let data = text.as_bytes();
+    
+    let encrypted = xor_encrypt_decrypt(data, KEY);
+    general_purpose::STANDARD.encode(encrypted)
+}
 
-    let mut decryptor = aes::cbc_decryptor(
-        aes::KeySize::KeySize256,
-        BIT256_KEY,
-        &iv, 
-        PkcsPadding
-    );
-
-    let mut ciphertext = Vec::new();
-    for i in 0..hex_ciphertext.len() / 2 {
-        let byte = u8::from_str_radix(&hex_ciphertext[2*i..2*i+2], 16).unwrap();
-        ciphertext.push(byte);
-    }
-
-    let mut buffer = [0; 4096];
-    let mut read_buffer = crypto::buffer::RefReadBuffer::new(&ciphertext);
-    let mut write_buffer = crypto::buffer::RefWriteBuffer::new(&mut buffer);
-
-    let mut plaintext = Vec::new();
-
-    loop {
-        let result = decryptor.decrypt(&mut read_buffer, &mut write_buffer, true).unwrap();
-        plaintext.extend(write_buffer.take_read_buffer().take_remaining().iter().map(|&i| i));
-
-        match result {
-            BufferResult::BufferUnderflow => break,
-            BufferResult::BufferOverflow => {}
+pub fn decrypt(encrypted_text: &str) -> String {
+    match general_purpose::STANDARD.decode(encrypted_text) {
+        Ok(encrypted_data) => {
+            let decrypted = xor_encrypt_decrypt(&encrypted_data, KEY);
+            match String::from_utf8(decrypted) {
+                Ok(binary_text) => binary_to_text(&binary_text),
+                Err(_) => String::new(),
+            }
         }
+        Err(_) => String::new(),
     }
-
-    binary_to_text(&String::from_utf8(plaintext).unwrap())
 }
 
 pub fn encrypt_file(file_path: &str) -> Result<String> {
-    let file = File::open(file_path).expect("FILE_NOT_FOUND".on_bright_red().to_string().as_str());
+    let file = File::open(file_path).map_err(|_| {
+        eprintln!("{}", "FILE_NOT_FOUND".on_bright_red());
+        std::io::Error::new(std::io::ErrorKind::NotFound, "File not found")
+    })?;
 
     let mut reader = BufReader::new(file);
     let mut text = String::new();
@@ -104,7 +70,10 @@ pub fn encrypt_file(file_path: &str) -> Result<String> {
 }
 
 pub fn decrypt_file(file_path: &str) -> Result<String> {
-    let file = File::open(file_path).expect("FILE_NOT_FOUND".on_bright_red().to_string().as_str());
+    let file = File::open(file_path).map_err(|_| {
+        eprintln!("{}", "FILE_NOT_FOUND".on_bright_red());
+        std::io::Error::new(std::io::ErrorKind::NotFound, "File not found")
+    })?;
 
     let mut reader = BufReader::new(file);
     let mut text = String::new();

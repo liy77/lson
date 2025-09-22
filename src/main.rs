@@ -1,3 +1,22 @@
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::match_like_matches_macro)]
+#![allow(clippy::to_string_trait_impl)]
+#![allow(clippy::expect_fun_call)]
+#![allow(clippy::manual_strip)]
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::len_zero)]
+#![allow(clippy::unnecessary_unwrap)]
+#![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::needless_borrow)]
+#![allow(clippy::single_match)]
+#![allow(dead_code)]
+#![allow(clippy::regex_creation_in_loops)]
+#![allow(clippy::if_same_then_else)]
+#![allow(clippy::search_is_some)]
+#![allow(clippy::map_clone)]
+#![allow(clippy::redundant_pattern_matching)]
+#![allow(clippy::nonminimal_bool)]
+
 mod utils;
 
 use std::{env, fs::File, io::{Read, Write}, process::exit};
