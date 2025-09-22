@@ -21,6 +21,7 @@ pub enum KSONItem {
 pub struct KSON {
     pub properties: Vec<KSONItem>,
     pub _sections: Vec<String>,
+    pub _section_indents: Vec<usize>, // Track indentation level for each section
     pub env_vars: Vec<String>,
 }
 
@@ -29,6 +30,7 @@ impl KSON {
         KSON {
             properties,
             _sections: vec![],
+            _section_indents: vec![],
             env_vars: vec![],
         }
     }
@@ -82,21 +84,56 @@ impl KSON {
 
     pub fn pop_section(&mut self) {
         self._sections.pop();
+        self._section_indents.pop();
     }
 
-    pub fn push_section(&mut self, section: &str) {
-        self.properties.push(KSONItem::Section(section.to_string(), vec![]));
+    pub fn push_section(&mut self, section: &str, indent: usize) {
+        let new_section = KSONItem::Section(section.to_string(), vec![]);
+        
+        if self._sections.is_empty() {
+            // Add to root level
+            self.properties.push(new_section);
+        } else {
+            // Add to the current nested section
+            let sections = self._sections.clone();
+            Self::add_to_nested_section(&mut self.properties, &sections, 0, new_section);
+        }
+        
         self._sections.push(section.to_string());
+        self._section_indents.push(indent);
     }
 
     pub fn attr(&mut self, item: KSONItem) {
-        if let Some(_section) = self.last_section() {
-            if let Some(KSONItem::Section(_section, properties)) = self.properties.last_mut() {
-                properties.push(item);
-            }
-        } else {
+        if self._sections.is_empty() {
+            // Add to root level
             self.properties.push(item);
+        } else {
+            // Navigate to the correct nested section
+            let sections = self._sections.clone();
+            Self::add_to_nested_section(&mut self.properties, &sections, 0, item);
         }
+    }
+    
+    fn add_to_nested_section(properties: &mut Vec<KSONItem>, sections: &[String], depth: usize, item: KSONItem) {
+        if depth >= sections.len() {
+            properties.push(item);
+            return;
+        }
+        
+        let target_section = &sections[depth];
+        
+        // Find the matching section and navigate deeper
+        for prop in properties.iter_mut().rev() {
+            if let KSONItem::Section(section_name, ref mut section_props) = prop {
+                if section_name == target_section {
+                    Self::add_to_nested_section(section_props, sections, depth + 1, item);
+                    return;
+                }
+            }
+        }
+        
+        // If we reach here, something went wrong
+        properties.push(item);
     }
 }
 
@@ -165,21 +202,41 @@ pub fn read(text: &str, kmodel_file: Option<&String>, verbose: bool) -> Vec<KSON
             continue;
         }
  
-        if line.starts_with("$") {
-            let section = line[1..].trim();
-            debug(verbose, &format!("Entering section: {}", section.bold().bright_cyan()));
-
-            if kson._sections.len() > 0 {                
-                debug(verbose, "Exiting from all sections before entering a new section");
-                kson._sections.clear();
-            }
-
-            kson.push_section(section);
-        } else if let Some((key, mut value)) = parse_property_line(&line) {
-            if kson._sections.len() > 0 {
-                if !line.starts_with("   ".repeat(kson._sections.len()).as_str()) {
-                    debug(verbose, &format!("Exiting from section: {}", kson.last_section().unwrap().bold().bright_red()));
+        // Check if line contains a section (starts with $ after whitespace)
+        let trimmed_line = line.trim_start();
+        if trimmed_line.starts_with("$") {
+            let section = trimmed_line[1..].trim();
+            
+            // Calculate indentation level of the section
+            let leading_whitespace = line.len() - line.trim_start().len();
+            
+            debug(verbose, &format!("Section {} found at indentation {}", section.bold().bright_cyan(), leading_whitespace));
+            
+            // Exit sections that are at equal or greater indentation level
+            while !kson._section_indents.is_empty() {
+                let last_indent = *kson._section_indents.last().unwrap();
+                if leading_whitespace <= last_indent {
+                    debug(verbose, &format!("Exiting from section: {} (section indentation: {} <= {})", kson.last_section().unwrap().bold().bright_red(), leading_whitespace, last_indent));
                     kson.pop_section();
+                } else {
+                    break;
+                }
+            }
+            
+            debug(verbose, &format!("Entering section: {}", section.bold().bright_cyan()));
+            kson.push_section(section, leading_whitespace);
+        } else if let Some((key, mut value)) = parse_property_line(&line) {
+            // Calculate the indentation level of the property
+            let leading_whitespace = line.len() - line.trim_start().len();
+            
+            // Exit sections if property is at the same or lesser indentation level
+            while !kson._section_indents.is_empty() {
+                let last_indent = *kson._section_indents.last().unwrap();
+                if leading_whitespace <= last_indent {
+                    debug(verbose, &format!("Exiting from section: {} (property indentation: {} <= {})", kson.last_section().unwrap().bold().bright_red(), leading_whitespace, last_indent));
+                    kson.pop_section();
+                } else {
+                    break;
                 }
             }
 

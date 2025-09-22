@@ -1,4 +1,49 @@
-/target
-test.*
-**/node_modules
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Node.js (for JS bindings)
+**/node_modules/
+package-lock.json
+yarn.lock
+
+# Logs
+*.log
+
+# Runtime
+*.env
 .env
+.env.local
+.env.production
+
+# Test files
+test*.kson
+test*.lson
+test*.json
+!examples/
+
+# Build artifacts
+*.exe
+lson
+lson-*
+
+# Temporary files
+tmp/
+temp/

@@ -2,6 +2,25 @@
 name = "lson"
 version = "0.1.0"
 edition = "2021"
+description = "Type-safe configuration file parser with KSON format support"
+authors = ["liy77"]
+license = "MIT"
+repository = "https://github.com/liy77/lson"
+homepage = "https://github.com/liy77/lson"
+documentation = "https://github.com/liy77/lson"
+readme = "README.md"
+keywords = ["config", "parser", "kson", "json", "configuration"]
+categories = ["config", "parsing", "command-line-utilities"]
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[[bin]]
+name = "lson"
+path = "src/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

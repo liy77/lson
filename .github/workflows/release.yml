@@ -1,0 +1,128 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      release_id: ${{ steps.create_release.outputs.id }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Get version from tag
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: LSON ${{ steps.get_version.outputs.VERSION }}
+        body: |
+          ## LSON ${{ steps.get_version.outputs.VERSION }}
+          
+          ### What's New
+          - Type-safe configuration file parser
+          - Cross-platform support (Windows, Linux, macOS)
+          - KSON to JSON/LSON compilation
+          - Environment variable support
+          - Model validation with KModel files
+          
+          ### Downloads
+          Choose the appropriate binary for your platform:
+          
+          - **Windows (64-bit)**: `lson-windows-x86_64.exe`
+          - **Linux (64-bit)**: `lson-linux-x86_64`
+          - **macOS (Intel)**: `lson-macos-x86_64`
+          - **macOS (Apple Silicon)**: `lson-macos-arm64`
+          
+          ### Installation
+          1. Download the binary for your platform
+          2. Make it executable (Linux/macOS): `chmod +x lson-*`
+          3. Move to a directory in your PATH or run directly
+          
+          ### Usage
+          ```bash
+          # Compile KSON to JSON
+          lson compile -f config.kson -t json
+          
+          # Compile KSON to LSON
+          lson compile -f config.kson -t lson
+          
+          # Parse LSON file
+          lson parse config.lson
+          ```
+        draft: false
+        prerelease: false
+
+  build-and-upload:
+    name: Build and Upload ${{ matrix.target }}
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: lson
+            asset_name: lson-linux-x86_64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: lson.exe
+            asset_name: lson-windows-x86_64.exe
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: lson
+            asset_name: lson-macos-x86_64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: lson
+            asset_name: lson-macos-arm64
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: release-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Build release
+      run: cargo build --release --target ${{ matrix.target }}
+
+    - name: Strip binary (Linux and macOS)
+      if: matrix.os != 'windows-latest'
+      run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+        asset_name: ${{ matrix.asset_name }}
+        asset_content_type: application/octet-stream
