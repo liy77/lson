@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::{fs::File, io::{BufRead, BufReader}, process::exit};
 use colored::Colorize;
 use regex::Regex;

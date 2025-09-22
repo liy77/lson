@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use colored::Colorize;
 
 pub fn debug(verbose: bool, message: &str) {
