@@ -1,0 +1,38 @@
+# Set default behavior to automatically normalize line endings.
+* text=auto
+
+# Force batch scripts to always use CRLF line endings so that if a repo is accessed
+# in Windows via a file share from Linux, the scripts will work.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Force bash scripts to always use LF line endings so that if a repo is accessed
+# in Unix via a file share from Windows, the scripts will work.
+*.sh text eol=lf
+
+# Rust source files should always use LF
+*.rs text eol=lf
+*.toml text eol=lf
+
+# GitHub workflows should use LF
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Documentation files should use LF
+*.md text eol=lf
+*.txt text eol=lf
+
+# Configuration files should use LF
+*.json text eol=lf
+*.lock text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary

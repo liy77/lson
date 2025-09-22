@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 
+use base64::{engine::general_purpose, Engine as _};
+use colored::Colorize;
 use std::fs::File;
 use std::io::{BufReader, Read, Result};
-use colored::Colorize;
-use base64::{Engine as _, engine::general_purpose};
 
 fn text_to_binary(text: &str) -> String {
     let mut result = String::new();
@@ -37,7 +37,7 @@ fn xor_encrypt_decrypt(data: &[u8], key: &[u8]) -> Vec<u8> {
 pub fn encrypt(text: &str) -> String {
     let text = text_to_binary(text);
     let data = text.as_bytes();
-    
+
     let encrypted = xor_encrypt_decrypt(data, KEY);
     general_purpose::STANDARD.encode(encrypted)
 }

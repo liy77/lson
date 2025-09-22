@@ -1,0 +1,14 @@
+# rustfmt configuration
+# Use LF line endings instead of CRLF
+newline_style = "Unix"
+
+# Basic formatting options (stable only)
+edition = "2021"
+max_width = 100
+hard_tabs = false
+tab_spaces = 4
+fn_params_layout = "Tall"
+match_block_trailing_comma = false
+reorder_imports = true
+reorder_modules = true
+use_small_heuristics = "Default"
