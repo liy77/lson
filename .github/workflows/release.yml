@@ -9,68 +9,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  create-release:
-    name: Create Release
-    runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-      release_id: ${{ steps.create_release.outputs.id }}
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Get version from tag
-      id: get_version
-      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: LSON ${{ steps.get_version.outputs.VERSION }}
-        body: |
-          ## LSON ${{ steps.get_version.outputs.VERSION }}
-          
-          ### What's New
-          - Type-safe configuration file parser
-          - Cross-platform support (Windows, Linux, macOS)
-          - KSON to JSON/LSON compilation
-          - Environment variable support
-          - Model validation with KModel files
-          
-          ### Downloads
-          Choose the appropriate binary for your platform:
-          
-          - **Windows (64-bit)**: `lson-windows-x86_64.exe`
-          - **Linux (64-bit)**: `lson-linux-x86_64`
-          - **macOS (Intel)**: `lson-macos-x86_64`
-          - **macOS (Apple Silicon)**: `lson-macos-arm64`
-          
-          ### Installation
-          1. Download the binary for your platform
-          2. Make it executable (Linux/macOS): `chmod +x lson-*`
-          3. Move to a directory in your PATH or run directly
-          
-          ### Usage
-          ```bash
-          # Compile KSON to JSON
-          lson compile -f config.kson -t json
-          
-          # Compile KSON to LSON
-          lson compile -f config.kson -t lson
-          
-          # Parse LSON file
-          lson parse config.lson
-          ```
-        draft: false
-        prerelease: false
-
-  build-and-upload:
-    name: Build and Upload ${{ matrix.target }}
-    needs: create-release
+  build-and-release:
+    name: Build and Release ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -102,7 +42,7 @@ jobs:
         targets: ${{ matrix.target }}
 
     - name: Cache cargo registry
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/registry
@@ -117,12 +57,52 @@ jobs:
       if: matrix.os != 'windows-latest'
       run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
 
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
+    - name: Get version from tag
+      id: get_version
+      shell: bash
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+    - name: Create Release and Upload Asset
+      uses: softprops/action-gh-release@v2
+      with:
+        files: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+        name: LSON ${{ steps.get_version.outputs.VERSION }}
+        body: |
+          ## LSON ${{ steps.get_version.outputs.VERSION }}
+          
+          ### What's New
+          - Type-safe configuration file parser
+          - Cross-platform support (Windows, Linux, macOS)
+          - KSON to JSON/LSON compilation
+          - Environment variable support
+          - Model validation with KModel files
+          - Nested sections support
+          
+          ### Downloads
+          Choose the appropriate binary for your platform:
+          
+          - **Windows (64-bit)**: `lson-windows-x86_64.exe`
+          - **Linux (64-bit)**: `lson-linux-x86_64`
+          - **macOS (Intel)**: `lson-macos-x86_64`
+          - **macOS (Apple Silicon)**: `lson-macos-arm64`
+          
+          ### Installation
+          1. Download the binary for your platform
+          2. Make it executable (Linux/macOS): `chmod +x lson-*`
+          3. Move to a directory in your PATH or run directly
+          
+          ### Usage
+          ```bash
+          # Compile KSON to JSON
+          lson compile -f config.kson -t json
+          
+          # Compile KSON to LSON
+          lson compile -f config.kson -t lson
+          
+          # Parse LSON file
+          lson parse config.lson
+          ```
+        draft: false
+        prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
-        asset_name: ${{ matrix.asset_name }}
-        asset_content_type: application/octet-stream
