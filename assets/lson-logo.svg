@@ -1,0 +1,73 @@
+<svg width="520" height="140" viewBox="0 0 520 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="lg" cx="36%" cy="55%" r="55%">
+      <stop offset="0%"   stop-color="#8B5CF6" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="lb" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#07071A"/>
+      <stop offset="100%" stop-color="#050514"/>
+    </linearGradient>
+    <!-- L body gradient: lighter at top, deeper at base -->
+    <linearGradient id="lgrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#DDD6FE"/>
+      <stop offset="45%"  stop-color="#8B5CF6"/>
+      <stop offset="100%" stop-color="#4C1D95"/>
+    </linearGradient>
+    <!-- Lock body gradient -->
+    <linearGradient id="lockgrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#EDE9FE"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+    <!-- Neon glow on shackle -->
+    <filter id="lneon" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="520" height="140" rx="18" fill="url(#lb)"/>
+  <ellipse cx="64" cy="76" rx="66" ry="54" fill="url(#lg)"/>
+
+  <!-- ── Bold L letterform ──────────────────────── -->
+  <!-- Vertical stroke of L -->
+  <rect x="26" y="22" width="28" height="88" rx="5" fill="url(#lgrad)"/>
+  <!-- Horizontal stroke of L -->
+  <rect x="26" y="88" width="86" height="26" rx="5" fill="url(#lgrad)"/>
+
+  <!-- ── Padlock at the inside corner of the L ──── -->
+  <!--
+    The lock sits in the negative space of the L corner,
+    showing the L is "sealed". Shackle points inward.
+  -->
+
+  <!-- Lock shackle: arc opening toward the L corner
+       Posts at x=70 and x=90, r=10, peak at y=56 -->
+  <g filter="url(#lneon)">
+    <path d="M 70 76 L 70 66 A 10 10 0 0 1 90 66 L 90 76"
+          stroke="#E9D5FF" stroke-width="4" stroke-linecap="round" fill="none"/>
+  </g>
+
+  <!-- Lock body -->
+  <rect x="62" y="74" width="36" height="26" rx="6" fill="url(#lockgrad)"/>
+
+  <!-- Keyhole circle -->
+  <circle cx="80" cy="85"  r="5"   fill="#07071A"/>
+  <!-- Keyhole slot -->
+  <rect   x="77.5" y="88" width="5" height="8" rx="2.5" fill="#07071A"/>
+
+  <!-- Divider -->
+  <rect x="142" y="28" width="1.5" height="84" rx="0.75" fill="#1A0F2E"/>
+
+  <!-- LSON wordmark -->
+  <text x="160" y="76"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="42" font-weight="900"
+        fill="#EFF6FF" letter-spacing="5">LSON</text>
+
+  <rect x="160" y="83" width="188" height="2" rx="1" fill="#A78BFA" opacity="0.35"/>
+
+  <text x="161" y="106"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="13.5" fill="#2E1F4A" letter-spacing="0.5">encrypted configuration</text>
+</svg>

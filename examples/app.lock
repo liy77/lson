@@ -1,0 +1,23 @@
+// kson-hash: b2790d5012b0a05547008d71a15e39abbbd972c5bef451449a139f6162c94f32
+{
+  "app_name": "lson-demo",
+  "auth": {
+    "expires": 3600,
+    "provider": "local",
+    "secret": "supersecret"
+  },
+  "database": {
+    "pool_max": 20,
+    "pool_min": 2,
+    "timeout": 30,
+    "url": "postgres://localhost/mydb"
+  },
+  "debug": false,
+  "max_workers": 4,
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8080,
+    "tls": true
+  },
+  "version": "1.0.0"
+}

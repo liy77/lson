@@ -1,0 +1,26 @@
+# examples/app.kson
+# Demonstrates: env var injection, typed properties, nested sections
+
+@env(APP_SECRET)
+@env(DB_URL)
+
+app_name    = "lson-demo"
+version     = "1.0.0"
+debug       = false
+max_workers = 4
+
+$server
+    host = "0.0.0.0"
+    port = 8080
+    tls  = true
+
+$database
+    url      = DB_URL
+    pool_min = 2
+    pool_max = 20
+    timeout  = 30
+
+$auth
+    secret   = APP_SECRET
+    expires  = 3600
+    provider = "local"

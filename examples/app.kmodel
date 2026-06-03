@@ -1,0 +1,23 @@
+# examples/app.kmodel
+# Type schema — enforced at compile time
+
+app_name:    String
+version:     String
+debug:       Bool
+max_workers: Integer
+
+$server
+    host: String
+    port: Integer
+    tls:  Bool
+
+$database
+    url:      String
+    pool_min: Integer
+    pool_max: Integer
+    timeout:  Integer
+
+$auth
+    secret:   String
+    expires:  Integer
+    provider: String

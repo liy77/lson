@@ -41,8 +41,8 @@ test*.json
 
 # Build artifacts
 *.exe
-lson
-lson-*
+/lson
+/lson-*
 
 # Temporary files
 tmp/

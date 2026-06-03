@@ -172,47 +172,51 @@ pub fn read(text: &str, kmodel_file: Option<&String>, verbose: bool) -> Vec<KSON
     }
 
     let mut kson = KSON::new(vec![]);
-    let mut ksonmodel: Option<kmodel::KModel> = None;
+
+    // Load kmodel once before the loop — loading inside the loop re-reads the file
+    // on every line, which is a significant performance and correctness bug.
+    let mut ksonmodel: Option<kmodel::KModel> = kmodel_file.map(|model| {
+        debug(verbose, &format!("KModel (CLI): {}", model.bold().yellow()));
+        kmodel::read(model, verbose)
+    });
+
     let kmodel_string = kson::kmodel::get_kmodel_colored();
-    let mut any_warn_emitted = false;
+    let any_warn_emitted = &mut false;
+
+    // Pre-compile regexes used inside the loop.
+    let array_re = Regex::new(r"\[(.*?)\]").unwrap();
+    let array_type_re = Regex::new(r"<([^<>]+)>").unwrap();
 
     for line in text.lines() {
         if line.starts_with("@model") {
-            let model = line[6..].trim();
-            let model = model
-                .trim_start_matches('(')
-                .trim_end_matches(')')
-                .trim_start_matches('"')
-                .trim_end_matches('"');
-
-            ksonmodel = Some(kmodel::read(model, verbose));
-
-            debug(verbose, &format!("KModel: {}", model.bold().yellow()));
-
+            // Only honour @model directive when no model was provided via CLI.
+            if ksonmodel.is_none() {
+                let model = line[6..].trim()
+                    .trim_start_matches('(')
+                    .trim_end_matches(')')
+                    .trim_start_matches('"')
+                    .trim_end_matches('"');
+                ksonmodel = Some(kmodel::read(model, verbose));
+                debug(verbose, &format!("KModel (@model): {}", model.bold().yellow()));
+            }
             continue;
-        } else if kmodel_file.is_some() {
-            let model = kmodel_file.unwrap();
-            ksonmodel = Some(kmodel::read(model, verbose));
-
-            debug(verbose, &format!("KModel: {}", model.bold().yellow()));
         }
 
         if line.starts_with("@env") {
-            let env_var = line[4..].trim();
-            let env_var = env_var.trim_start_matches('(').trim_end_matches(')');
-            kson.env_vars.push(env_var.to_string());
-            let env_var = env::var(env_var).expect(&format!(
+            let env_name = line[4..].trim().trim_start_matches('(').trim_end_matches(')');
+            kson.env_vars.push(env_name.to_string());
+            let env_value = env::var(env_name).expect(&format!(
                 "{}: {}",
                 "MISSING_ENV".on_bright_red(),
-                env_var
+                env_name
             ));
 
             debug(
                 verbose,
                 &format!(
-                    "Adding env var: {} = {}",
-                    env_var.bold().black(),
-                    env_var.red()
+                    "Registered env var: {} = {}",
+                    env_name.bold().black(),
+                    env_value.red()
                 ),
             );
 
@@ -307,7 +311,7 @@ pub fn read(text: &str, kmodel_file: Option<&String>, verbose: bool) -> Vec<KSON
                 value = format!("\"{}\"", env_var);
             }
 
-            if line.starts_with(&key) && kson._sections.len() > 0 {
+            if line.starts_with(&key) && !kson._sections.is_empty() {
                 kson._sections.clear();
             }
 
@@ -319,7 +323,7 @@ pub fn read(text: &str, kmodel_file: Option<&String>, verbose: bool) -> Vec<KSON
             if ksonmodel.is_some() {
                 let ksonmodel = ksonmodel.as_ref().unwrap();
 
-                let kt_value = if kson._sections.len() > 0 {
+                let kt_value = if !kson._sections.is_empty() {
                     ksonmodel.get_section_property(kson.last_section().unwrap(), &key)
                 } else {
                     ksonmodel.get_property(&key)
@@ -338,16 +342,15 @@ pub fn read(text: &str, kmodel_file: Option<&String>, verbose: bool) -> Vec<KSON
                         );
 
                         let kt_value = kt_value.to_string().trim_end_matches('?').to_string();
-                        let array_re: Regex = Regex::new(r"\[(.*?)\]").unwrap();
                         let array_cap = array_re.captures_iter(&value).collect::<Vec<_>>();
 
                         if kt_value == "Any" {
-                            if !any_warn_emitted {
+                            if !*any_warn_emitted {
                                 warn(&format!(
                                     "{} Use of Any type is not recommended",
                                     kmodel_string
                                 ));
-                                any_warn_emitted = true;
+                                *any_warn_emitted = true;
                             }
 
                             kson.attr(KSONItem::Property(key.clone(), value.clone()));
@@ -367,9 +370,8 @@ pub fn read(text: &str, kmodel_file: Option<&String>, verbose: bool) -> Vec<KSON
                             kson.attr(KSONItem::Property(key.clone(), value.clone()));
                         } else if value.parse::<bool>().is_ok() && kt_value == "Bool" {
                             kson.attr(KSONItem::Property(key.clone(), value.clone()));
-                        } else if array_cap.len() > 0 && kt_value.starts_with("Array") {
-                            let re = Regex::new(r"<([^<>]+)>").unwrap();
-                            let (_, [mut kind]) = re.captures(&kt_value).unwrap().extract();
+                        } else if !array_cap.is_empty() && kt_value.starts_with("Array") {
+                            let (_, [mut kind]) = array_type_re.captures(&kt_value).unwrap().extract();
 
                             if kind.ends_with("?") {
                                 kind = &kind[..kind.len() - 1];
@@ -454,31 +456,28 @@ pub fn read(text: &str, kmodel_file: Option<&String>, verbose: bool) -> Vec<KSON
                         let kson_section = kson_section.unwrap();
 
                         for kitem in properties {
-                            match kitem {
-                                kmodel::KItemType::Property(k, v) => {
-                                    if kson_section
-                                        .iter()
-                                        .find(|&item| {
-                                            if let KSONItem::Property(k2, _) = item {
-                                                k2 == &k
-                                            } else {
-                                                false
-                                            }
-                                        })
-                                        .is_none()
-                                        && v.is_required()
-                                    {
-                                        eprintln!(
-                                            "{} Property {} in {} is required by {}",
-                                            "error".red(),
-                                            k.bold().black(),
-                                            key.to_string().bold().bright_cyan(),
-                                            kson::kmodel::get_kmodel_colored()
-                                        );
-                                        exit(1);
-                                    }
+                            if let kmodel::KItemType::Property(k, v) = kitem {
+                                let missing = kson_section
+                                    .iter()
+                                    .find(|&item| {
+                                        if let KSONItem::Property(k2, _) = item {
+                                            k2 == &k
+                                        } else {
+                                            false
+                                        }
+                                    })
+                                    .is_none();
+
+                                if missing && v.is_required() {
+                                    eprintln!(
+                                        "{} Property {} in {} is required by {}",
+                                        "error".red(),
+                                        k.bold().black(),
+                                        key.to_string().bold().bright_cyan(),
+                                        kson::kmodel::get_kmodel_colored()
+                                    );
+                                    exit(1);
                                 }
-                                _ => {}
                             }
                         }
                     }
@@ -502,25 +501,31 @@ pub fn read(text: &str, kmodel_file: Option<&String>, verbose: bool) -> Vec<KSON
 }
 
 fn parse_property_line(line: &str) -> Option<(String, String)> {
-    let parts: Vec<&str> = line.split('=').map(|s| s.trim()).collect();
-    if parts.len() == 2 {
-        Some((parts[0].to_string(), parts[1].to_string()))
-    } else {
-        None
+    // Use splitn(2) so values containing '=' (e.g. base64, URLs) are preserved.
+    let mut parts = line.splitn(2, '=');
+    let key = parts.next()?.trim();
+    let value = parts.next()?.trim();
+    if key.is_empty() || value.is_empty() {
+        return None;
     }
+    Some((key.to_string(), value.to_string()))
 }
 
 pub fn kson_items_to_json(items: Vec<KSONItem>) -> String {
+    if items.is_empty() {
+        return "{}".to_string();
+    }
+
     let mut json = String::from("{");
 
     for item in items {
         match item {
             KSONItem::Property(key, value) => {
-                if value.starts_with('\'') && value.ends_with('\'') {
+                if value.starts_with('\'') && value.ends_with('\'') && value.len() >= 2 {
                     json.push_str(&format!(
                         "\"{}\": \"{}\",",
                         key,
-                        value.trim_start_matches('\'').trim_end_matches('\'')
+                        &value[1..value.len() - 1]
                     ));
                     continue;
                 }
@@ -533,7 +538,7 @@ pub fn kson_items_to_json(items: Vec<KSONItem>) -> String {
         }
     }
 
-    json.pop();
+    json.pop(); // remove trailing comma — safe because items is non-empty
     json.push('}');
     json
 }

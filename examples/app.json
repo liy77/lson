@@ -1,0 +1,1 @@
+{"app_name": "lson-demo","version": "1.0.0","debug": false,"max_workers": 4,"server": {"host": "0.0.0.0","port": 8080,"tls": true},"database": {"url": "postgres://localhost/mydb","pool_min": 2,"pool_max": 20,"timeout": 30},"auth": {"secret": "supersecret","expires": 3600,"provider": "local"}}

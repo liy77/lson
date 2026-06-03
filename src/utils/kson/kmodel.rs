@@ -201,7 +201,7 @@ pub fn read(file_path: &str, verbose: bool) -> KModel {
                 kson.push_section(KModelSection::Required(section.to_string()));
             }
         } else if let Some((key, value)) = parse_property_line(&line) {
-            if kson._sections.len() > 0 {
+            if !kson._sections.is_empty() {
                 if !line.starts_with("   ".repeat(kson._sections.len()).as_str()) {
                     debug(
                         verbose,
@@ -215,7 +215,7 @@ pub fn read(file_path: &str, verbose: bool) -> KModel {
                 }
             }
 
-            if line.starts_with(&key) && kson._sections.len() > 0 {
+            if line.starts_with(&key) && !kson._sections.is_empty() {
                 debug(
                     verbose,
                     &format!("{} Exiting from all sections", kmodel_string),

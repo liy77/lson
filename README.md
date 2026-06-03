@@ -1,148 +1,197 @@
-<html>
-    <center>
-        <img src="./assets/all.png" width=15%></img>
-        <h3>Type-Safe configuration file</h3>
-    </center>
-</html>
+<div align="center">
+  <img src="./assets/lson-logo.svg" alt="LSON" width="480"/>
+  <br/><br/>
+  <img src="./assets/kson-logo.svg" alt="KSON" width="480"/>
+  &nbsp;&nbsp;
+  <img src="./assets/kmodel-logo.svg" alt="KModel" width="480"/>
+  <br/><br/>
 
-![CI](https://github.com/liy77/lson/workflows/CI/badge.svg)
-![Release](https://github.com/liy77/lson/workflows/Release/badge.svg)
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
+  [![CI](https://github.com/liy77/lson/workflows/CI/badge.svg)](https://github.com/liy77/lson/actions)
+  [![Release](https://github.com/liy77/lson/workflows/Release/badge.svg)](https://github.com/liy77/lson/releases)
+  [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+</div>
 
-# LSON - Type-Safe Configuration Parser
+---
 
-LSON is a powerful type-safe configuration file parser that supports the KSON format with automatic builds for multiple platforms.
+**LSON** is a type-safe configuration toolkit built around three components:
 
-## 🚀 Installation
+| Component | Description |
+|-----------|-------------|
+| **KSON** | Human-friendly config format with env-var injection and nested sections |
+| **KModel** | Schema file that enforces types on KSON properties |
+| **LSON** | ChaCha20-Poly1305 encrypted form of a KSON file |
 
-### Pre-built Binaries
-Download the latest release for your platform from the [Releases page](https://github.com/liy77/lson/releases):
+---
 
-- **Windows**: `lson-windows-x86_64.exe`
-- **Linux**: `lson-linux-x86_64`
-- **macOS (Intel)**: `lson-macos-x86_64`
-- **macOS (Apple Silicon)**: `lson-macos-arm64`
+## Installation
 
-### From Source
-```bash
+### Pre-built binaries
+
+Download the latest release from the [Releases page](https://github.com/liy77/lson/releases):
+
+| Platform | Binary |
+|----------|--------|
+| Linux x86_64 | `lson-linux-x86_64` |
+| Windows x86_64 | `lson-windows-x86_64.exe` |
+| macOS Apple Silicon | `lson-macos-arm64` |
+
+**Linux / macOS**
+```sh
+chmod +x lson-*
+sudo mv lson-* /usr/local/bin/lson
+```
+
+### From source
+```sh
 git clone https://github.com/liy77/lson.git
 cd lson
 cargo build --release
 ```
 
-## 📖 Understanding KSON
+---
+
+## KSON format
+
+KSON is a readable key-value config format that supports environment variable injection and indentation-based nested sections.
+
 ```kson
 # config.kson
 
-# Get var USER_TOKEN and USER_KEY in env
-@env(USER_TOKEN)
-@env(USER_KEY)
+# Declare the env vars this file uses
+@env(DB_URL)
+@env(API_TOKEN)
 
-username = "Liy"
-token = USER_TOKEN
-public_key = USER_KEY
+app_name   = "my-app"
+debug      = false
+max_conn   = 100
+api_token  = API_TOKEN   # replaced with $API_TOKEN at parse time
 
-# Nested sections
-$dependencies
-    teste = 1
-    $teste2
-        git = "https://github.com/example"
-        branch = "main"
-    outro_campo = "valor"
+$database
+    url  = DB_URL
+    pool = 10
+
+    $replica
+        url      = "postgres://replica:5432/db"
+        readonly = true
 ```
 
-## 📋 Understanding KModel
+---
+
+## KModel — type schema
+
+A `.kmodel` file enforces types on KSON properties. Reference it at compile time or inline with `@model(path)`.
+
 ```kmodel
 # config.kmodel
 
-username: String
-token: String
-public_key: String?
+app_name:  String
+debug:     Bool
+max_conn:  Integer
+api_token: String?   # ? = optional
 
-dependencies: {
-    teste: Integer
-    teste2: {
-        git: String
-        branch: String
-    }
-    outro_campo: String
-}
+$database
+    url:  String
+    pool: Integer
+
+    $replica
+        url:      String
+        readonly: Bool
 ```
 
-## 🛠 Usage
+**Available types:** `String` · `Integer` · `Float` · `Bool` · `Char` · `Any` · `Array<T>` · `T?` (optional)
 
-### Compile KSON to LSON
-```bash
+---
+
+## LSON — encrypted configuration
+
+LSON seals a KSON file with authenticated encryption (ChaCha20-Poly1305 + Argon2id key derivation). The file embeds a SHA-256 fingerprint of the original KSON so drift can be detected without decrypting.
+
+```
+LSON/1
+SALT:<hex>       ← random 16 bytes for Argon2id
+NONCE:<hex>      ← random 12 bytes for ChaCha20-Poly1305
+KSON-HASH:<hex>  ← SHA-256 of the plaintext (for drift detection)
+
+<base64 ciphertext + Poly1305 auth tag>
+```
+
+> The passphrase is read from the `LSON_KEY` env var, the `--key` flag, or an interactive prompt.
+
+---
+
+## Usage
+
+### Compile KSON → LSON (encrypted)
+```sh
 lson compile -f config.kson
+# or with explicit key
+LSON_KEY=secret lson compile -f config.kson -o config.lson
 ```
 
-### Compile KSON to JSON
-```bash
-lson compile -t json -f config.kson
+### Compile KSON → JSON
+```sh
+lson compile -f config.kson -t json -o config.json
 ```
 
-### Parse LSON file
-```bash
-lson parse config.lson
-```
-
-### Using with KModel validation
-```bash
+### Compile with KModel validation
+```sh
 lson compile -f config.kson --kmodel config.kmodel -t json
 ```
 
-### Raw mode (for programmatic use)
-```bash
+### Decrypt an LSON file
+```sh
+lson parse config.lson
+```
+
+### Detect configuration drift
+Check whether the source KSON has changed since the LSON was compiled — **no passphrase needed**:
+```sh
+lson verify -f config.kson --lson config.lson
+# ✓ Source KSON matches the sealed hash — no drift detected.
+# sha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4...
+```
+
+### Pin a resolved config (lockfile)
+Writes canonical JSON + SHA-256 hash for reproducibility and diff-friendly version control:
+```sh
+lson lock -f config.kson -o config.lock
+```
+
+### Raw mode (programmatic / piping)
+```sh
 lson raw compile -f config.kson -t json
 ```
 
-## 🏗 Development
+---
 
-### Building
-```bash
+## Development
+
+```sh
+# Build
 cargo build
-```
 
-### Testing
-```bash
+# Run tests
 cargo test
-```
 
-### Linting
-```bash
+# Lint
 cargo clippy
 cargo fmt
+
+# Cross-platform release build (Python)
+python build.py              # all targets
+python build.py linux        # only linux
+python build.py windows macos-arm64
 ```
 
-## 🤖 Automated Builds
+### Release
+```sh
+git tag v1.0.0
+git push origin v1.0.0
+# GitHub Actions builds and publishes the release automatically
+```
 
-This project uses GitHub Actions for automated building and releasing:
+---
 
-- **CI Pipeline**: Runs on every push/PR, tests across Windows, Linux, and macOS
-- **Development Builds**: Creates artifacts for every commit to main branch (30-day retention)
-- **Release Pipeline**: Triggered by version tags (e.g., `v1.0.0`), creates GitHub releases with binaries
+## License
 
-### Creating a Release
-1. Update version in `Cargo.toml`
-2. Create and push a tag:
-   ```bash
-   git tag v1.0.0
-   git push origin v1.0.0
-   ```
-3. GitHub Actions will automatically build and create a release
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 🐛 Issues
-
-If you encounter any issues or have suggestions, please [open an issue](https://github.com/liy77/lson/issues).
+MIT — see [LICENSE](LICENSE).
