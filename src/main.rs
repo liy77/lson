@@ -15,16 +15,55 @@
 #![allow(clippy::redundant_pattern_matching)]
 #![allow(clippy::nonminimal_bool)]
 
-mod utils;
+use lson::utils;
 
 use clap::{self, arg, Command};
 use colored::Colorize;
 use std::{fs, fs::File, io::Write, process::exit};
 
-fn main() {
-    let key_arg = || {
-        arg!(--key <KEY> "Encryption passphrase (overrides LSON_KEY env var)").required(false)
+/// Load a KSON document through the library, optionally validate it, and
+/// render it. stdout callers and file callers share this path.
+fn render_document(
+    file: Option<&str>,
+    text: Option<&str>,
+    kmodel: Option<&String>,
+    output_type: &str,
+) -> Result<Vec<u8>, String> {
+    let src = if let Some(path) = file {
+        fs::read_to_string(path).map_err(|e| format!("cannot read '{path}': {e}"))?
+    } else {
+        text.unwrap_or("").to_string()
     };
+    let doc = lson::parse_str(&src).map_err(|e| e.to_string())?;
+    if let Some(model_path) = kmodel {
+        let model_src = fs::read_to_string(model_path)
+            .map_err(|e| format!("cannot read kmodel '{model_path}': {e}"))?;
+        let model = lson::model_from_source(&model_src).map_err(|e| e.to_string())?;
+        model.validate_value(&doc.root).map_err(|issues| {
+            issues
+                .iter()
+                .map(|i| i.to_string())
+                .collect::<Vec<_>>()
+                .join("; ")
+        })?;
+    }
+    let sorted = lson::value::sort_value(&doc.root);
+    match output_type {
+        "json" => lson::to_json(&sorted)
+            .map(|s| s.into_bytes())
+            .map_err(|e| e.to_string()),
+        "yaml" => lson::to_yaml(&sorted)
+            .map(|s| s.into_bytes())
+            .map_err(|e| e.to_string()),
+        "cbor" => lson::to_cbor(&sorted).map_err(|e| e.to_string()),
+        "canonical" => Ok(lson::canonical(&sorted).into_bytes()),
+        other => Err(format!("unsupported textual output '{other}'")),
+    }
+}
+
+fn main() {
+    let key_arg =
+        || arg!(--key <KEY> "Encryption passphrase (overrides LSON_KEY env var)").required(false);
 
     let raw = Command::new("raw")
         .about("Raw commands mode (output to stdout)")
@@ -37,7 +76,7 @@ fn main() {
                 )
                 .arg(arg!(--text <TEXT> "The kson text to compile").required_unless_present("file"))
                 .arg(
-                    arg!(-t --output_type <TYPE> "Output type: json | lson")
+                    arg!(-t --output_type <TYPE> "Output type: json | yaml | cbor | canonical | lson")
                         .default_value("lson"),
                 )
                 .arg(arg!(--kmodel <KMODEL> "The kmodel file to validate against"))
@@ -63,7 +102,7 @@ fn main() {
                 .arg(arg!(--text <TEXT> "The kson text to compile").required_unless_present("file"))
                 .arg(arg!(-o --output <OUTPUT> "Output file path"))
                 .arg(
-                    arg!(-t --output_type <TYPE> "Output type: json | lson")
+                    arg!(-t --output_type <TYPE> "Output type: json | yaml | cbor | canonical | lson")
                         .default_value("lson"),
                 )
                 .arg(arg!(--kmodel <KMODEL> "The kmodel file to validate against"))
@@ -108,7 +147,7 @@ fn main() {
         exit(0);
     }
 
-    let verbose = *matches.get_one::<bool>("verbose").unwrap_or(&false);
+    let _verbose = *matches.get_one::<bool>("verbose").unwrap_or(&false);
 
     match matches.subcommand() {
         // ── compile ──────────────────────────────────────────────────────────
@@ -119,8 +158,14 @@ fn main() {
             let kmodel = arg_m.get_one::<String>("kmodel");
             let explicit_key = arg_m.get_one::<String>("key").map(|s| s.as_str());
 
-            if output_type != "json" && output_type != "lson" {
-                eprintln!("Invalid output type '{}' — choose json or lson", output_type);
+            if !matches!(
+                output_type.as_str(),
+                "json" | "yaml" | "cbor" | "canonical" | "lson"
+            ) {
+                eprintln!(
+                    "Invalid output type '{}' — choose json, yaml, cbor, canonical, or lson",
+                    output_type
+                );
                 exit(1);
             }
 
@@ -141,7 +186,10 @@ fn main() {
                     exit(1);
                 });
 
-                eprintln!("{}", "Deriving key with Argon2id (this takes a moment)…".bright_black());
+                eprintln!(
+                    "{}",
+                    "Deriving key with Argon2id (this takes a moment)…".bright_black()
+                );
 
                 let lson_result = if let Some(f) = file {
                     utils::lson::encrypt_file(f, &key)
@@ -160,20 +208,22 @@ fn main() {
                 out_file.write_all(lson_result.as_bytes()).unwrap();
                 println!("{}: {}", "Sealed LSON →".green(), out.yellow());
             } else {
-                let json_result = if let Some(f) = file {
-                    utils::kson::kson_items_to_json(
-                        utils::kson::read_file(f, kmodel, verbose).unwrap(),
-                    )
-                } else {
-                    utils::kson::kson_items_to_json(utils::kson::read(text.unwrap(), kmodel, verbose))
-                };
-
+                let rendered = render_document(
+                    file.map(|s| s.as_str()),
+                    text.map(|s| s.as_str()),
+                    kmodel,
+                    output_type,
+                )
+                .unwrap_or_else(|e| {
+                    eprintln!("{}: {}", "error".red().bold(), e);
+                    exit(1);
+                });
                 let mut out_file = File::create(&out).unwrap_or_else(|e| {
                     eprintln!("{}: {}", "error".red().bold(), e);
                     exit(1);
                 });
-                out_file.write_all(json_result.as_bytes()).unwrap();
-                println!("{}: {}", "Wrote JSON →".green(), out.yellow());
+                out_file.write_all(&rendered).unwrap();
+                println!("{}: {}", "Wrote output →".green(), out.yellow());
             }
         }
 
@@ -209,12 +259,22 @@ fn main() {
             let lson_file = arg_m.get_one::<String>("lson").unwrap();
 
             let kson_content = fs::read_to_string(kson_file).unwrap_or_else(|e| {
-                eprintln!("{}: cannot read '{}': {}", "error".red().bold(), kson_file, e);
+                eprintln!(
+                    "{}: cannot read '{}': {}",
+                    "error".red().bold(),
+                    kson_file,
+                    e
+                );
                 exit(1);
             });
 
             let lson_content = fs::read_to_string(lson_file).unwrap_or_else(|e| {
-                eprintln!("{}: cannot read '{}': {}", "error".red().bold(), lson_file, e);
+                eprintln!(
+                    "{}: cannot read '{}': {}",
+                    "error".red().bold(),
+                    lson_file,
+                    e
+                );
                 exit(1);
             });
 
@@ -252,15 +312,12 @@ fn main() {
                 exit(1);
             });
 
-            let json_result = utils::kson::kson_items_to_json(
-                utils::kson::read_file(file, kmodel, verbose).unwrap(),
-            );
-
-            // Re-serialise through serde_json to guarantee sorted, canonical keys.
-            let canonical = match serde_json::from_str::<serde_json::Value>(&json_result) {
-                Ok(v) => serde_json::to_string_pretty(&v).unwrap_or(json_result),
-                Err(_) => json_result,
-            };
+            let canonical_bytes =
+                render_document(Some(file), None, kmodel, "json").unwrap_or_else(|e| {
+                    eprintln!("{}: {}", "error".red().bold(), e);
+                    exit(1);
+                });
+            let canonical = String::from_utf8_lossy(&canonical_bytes).to_string();
 
             let kson_hash = utils::lson::sha256_hex(kson_content.as_bytes());
 
@@ -309,18 +366,17 @@ fn main() {
                         });
                         print!("{}", result);
                     } else {
-                        let result = if let Some(f) = file {
-                            utils::kson::kson_items_to_json(
-                                utils::kson::read_file(f, kmodel, verbose).unwrap(),
-                            )
-                        } else {
-                            utils::kson::kson_items_to_json(utils::kson::read(
-                                text.unwrap(),
-                                kmodel,
-                                verbose,
-                            ))
-                        };
-                        print!("{}", result);
+                        let rendered = render_document(
+                            file.map(|s| s.as_str()),
+                            text.map(|s| s.as_str()),
+                            kmodel,
+                            output_type,
+                        )
+                        .unwrap_or_else(|e| {
+                            eprintln!("{}: {}", "error".red().bold(), e);
+                            exit(1);
+                        });
+                        let _ = std::io::Write::write_all(&mut std::io::stdout(), &rendered);
                     }
                 }
             } else {
@@ -333,7 +389,10 @@ fn main() {
             let _ = menu.print_help();
         }
         None => {
-            println!("{}", "🔒 LSON — Type-safe encrypted configuration".cyan().bold());
+            println!(
+                "{}",
+                "🔒 LSON — Type-safe encrypted configuration".cyan().bold()
+            );
             let _ = menu.print_help();
         }
     }

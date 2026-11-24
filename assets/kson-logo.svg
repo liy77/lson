@@ -1,72 +1,25 @@
 <svg width="520" height="140" viewBox="0 0 520 140" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <radialGradient id="kg" cx="38%" cy="50%" r="55%">
-      <stop offset="0%"   stop-color="#0EA5E9" stop-opacity="0.22"/>
-      <stop offset="100%" stop-color="#0EA5E9" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="kb" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%"   stop-color="#06111E"/>
-      <stop offset="100%" stop-color="#030C18"/>
+    <linearGradient id="ground" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#10181C"/>
+      <stop offset="100%" stop-color="#0B1216"/>
     </linearGradient>
-    <!-- Neon glow filter for tentacle strokes -->
-    <filter id="kneon" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
   </defs>
-
-  <rect width="520" height="140" rx="18" fill="url(#kb)"/>
-  <ellipse cx="66" cy="70" rx="62" ry="56" fill="url(#kg)"/>
-
-  <!-- ── Tentacle K ─────────────────────────────── -->
-  <g filter="url(#kneon)">
-    <!-- Vertical stroke: slightly wavy S-curve -->
-    <path d="M 50 28 C 42 50 60 70 50 112"
-          stroke="#38BDF8" stroke-width="16" stroke-linecap="round" fill="none"/>
-    <!-- Upper arm: organic curve up-right -->
-    <path d="M 50 70 C 65 62 83 50 108 30"
-          stroke="#38BDF8" stroke-width="14" stroke-linecap="round" fill="none"/>
-    <!-- Lower arm: organic curve down-right -->
-    <path d="M 50 70 C 65 78 83 90 108 110"
-          stroke="#38BDF8" stroke-width="14" stroke-linecap="round" fill="none"/>
+  <rect width="520" height="140" rx="18" fill="url(#ground)"/>
+  <g transform="translate(36,28)">
+    <path d="M8 6 C-2 6 -2 28 8 36 C-2 44 -2 66 8 72" stroke="#C0C8D0" stroke-width="3.4" stroke-linecap="round" fill="none"/>
+    <path d="M86 6 C96 6 96 28 86 36 C96 44 96 66 86 72" stroke="#C0C8D0" stroke-width="3.4" stroke-linecap="round" fill="none"/>
+    <path d="M47 16 L70 28 L47 40 L24 28 Z" fill="#14B8A6"/>
+    <path d="M24 28 L47 40 L47 62 L24 50 Z" fill="#0E7490"/>
+    <path d="M47 40 L70 28 L70 50 L47 62 Z" fill="#E8EEF2"/>
+    <circle cx="24" cy="28" r="3" fill="#E8EEF2"/>
+    <circle cx="70" cy="28" r="3" fill="#E8EEF2"/>
+    <circle cx="47" cy="62" r="3" fill="#0E7490"/>
+    <path d="M24 28 L12 18" stroke="#14B8A6" stroke-width="1.5"/>
+    <path d="M70 28 L82 18" stroke="#14B8A6" stroke-width="1.5"/>
+    <circle cx="12" cy="18" r="2.2" fill="#C0C8D0"/>
+    <circle cx="82" cy="18" r="2.2" fill="#C0C8D0"/>
   </g>
-
-  <!-- Suction cups on vertical stroke (right/inner side) -->
-  <circle cx="58" cy="40"  r="4.5" fill="#38BDF8"/>
-  <circle cx="58" cy="40"  r="2"   fill="#06111E"/>
-  <circle cx="52" cy="56"  r="4.5" fill="#38BDF8"/>
-  <circle cx="52" cy="56"  r="2"   fill="#06111E"/>
-  <circle cx="59" cy="72"  r="4.5" fill="#38BDF8"/>
-  <circle cx="59" cy="72"  r="2"   fill="#06111E"/>
-  <circle cx="57" cy="88"  r="4.5" fill="#38BDF8"/>
-  <circle cx="57" cy="88"  r="2"   fill="#06111E"/>
-  <circle cx="56" cy="103" r="4.5" fill="#38BDF8"/>
-  <circle cx="56" cy="103" r="2"   fill="#06111E"/>
-
-  <!-- Suction cups on upper arm (lower edge) -->
-  <circle cx="69"  cy="64" r="4" fill="#38BDF8"/>
-  <circle cx="69"  cy="64" r="1.8" fill="#06111E"/>
-  <circle cx="88"  cy="52" r="4" fill="#38BDF8"/>
-  <circle cx="88"  cy="52" r="1.8" fill="#06111E"/>
-
-  <!-- Suction cups on lower arm (upper edge) -->
-  <circle cx="69"  cy="76" r="4" fill="#38BDF8"/>
-  <circle cx="69"  cy="76" r="1.8" fill="#06111E"/>
-  <circle cx="88"  cy="88" r="4" fill="#38BDF8"/>
-  <circle cx="88"  cy="88" r="1.8" fill="#06111E"/>
-
-  <!-- Divider -->
-  <rect x="140" y="28" width="1.5" height="84" rx="0.75" fill="#0F2540"/>
-
-  <!-- KSON wordmark -->
-  <text x="158" y="76"
-        font-family="Arial, Helvetica, sans-serif"
-        font-size="42" font-weight="900"
-        fill="#EFF6FF" letter-spacing="5">KSON</text>
-
-  <rect x="158" y="83" width="196" height="2" rx="1" fill="#38BDF8" opacity="0.35"/>
-
-  <text x="159" y="106"
-        font-family="Arial, Helvetica, sans-serif"
-        font-size="13.5" fill="#274461" letter-spacing="0.5">type-safe configuration</text>
+  <text x="168" y="82" fill="#E8EEF2" font-family="ui-sans-serif, Helvetica, Arial, sans-serif" font-size="54" font-weight="650" letter-spacing="6">KSON</text>
+  <text x="170" y="108" fill="#14B8A6" font-family="ui-sans-serif, Helvetica, Arial, sans-serif" font-size="13" letter-spacing="3">TYPED DATA FORMAT</text>
 </svg>

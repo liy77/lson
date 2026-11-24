@@ -191,19 +191,26 @@ pub fn read(text: &str, kmodel_file: Option<&String>, verbose: bool) -> Vec<KSON
         if line.starts_with("@model") {
             // Only honour @model directive when no model was provided via CLI.
             if ksonmodel.is_none() {
-                let model = line[6..].trim()
+                let model = line[6..]
+                    .trim()
                     .trim_start_matches('(')
                     .trim_end_matches(')')
                     .trim_start_matches('"')
                     .trim_end_matches('"');
                 ksonmodel = Some(kmodel::read(model, verbose));
-                debug(verbose, &format!("KModel (@model): {}", model.bold().yellow()));
+                debug(
+                    verbose,
+                    &format!("KModel (@model): {}", model.bold().yellow()),
+                );
             }
             continue;
         }
 
         if line.starts_with("@env") {
-            let env_name = line[4..].trim().trim_start_matches('(').trim_end_matches(')');
+            let env_name = line[4..]
+                .trim()
+                .trim_start_matches('(')
+                .trim_end_matches(')');
             kson.env_vars.push(env_name.to_string());
             let env_value = env::var(env_name).expect(&format!(
                 "{}: {}",
@@ -371,7 +378,8 @@ pub fn read(text: &str, kmodel_file: Option<&String>, verbose: bool) -> Vec<KSON
                         } else if value.parse::<bool>().is_ok() && kt_value == "Bool" {
                             kson.attr(KSONItem::Property(key.clone(), value.clone()));
                         } else if !array_cap.is_empty() && kt_value.starts_with("Array") {
-                            let (_, [mut kind]) = array_type_re.captures(&kt_value).unwrap().extract();
+                            let (_, [mut kind]) =
+                                array_type_re.captures(&kt_value).unwrap().extract();
 
                             if kind.ends_with("?") {
                                 kind = &kind[..kind.len() - 1];
@@ -522,11 +530,7 @@ pub fn kson_items_to_json(items: Vec<KSONItem>) -> String {
         match item {
             KSONItem::Property(key, value) => {
                 if value.starts_with('\'') && value.ends_with('\'') && value.len() >= 2 {
-                    json.push_str(&format!(
-                        "\"{}\": \"{}\",",
-                        key,
-                        &value[1..value.len() - 1]
-                    ));
+                    json.push_str(&format!("\"{}\": \"{}\",", key, &value[1..value.len() - 1]));
                     continue;
                 }
 

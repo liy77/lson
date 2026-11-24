@@ -247,3 +247,26 @@ fn parse_lson(content: &str) -> Result<LsonParsed, LsonError> {
         ciphertext,
     })
 }
+
+#[cfg(test)]
+mod seal_tests {
+    use super::*;
+
+    #[test]
+    fn whole_file_seal_round_trip_preserves_lson1_header() {
+        let plain = "app = \"demo\"\nport = 1\n";
+        let sealed = encrypt(plain, "test-passphrase").unwrap();
+        assert!(sealed.starts_with("LSON/1\n"));
+        assert!(sealed.contains("SALT:"));
+        assert!(sealed.contains("NONCE:"));
+        assert!(sealed.contains("KSON-HASH:"));
+        let hash = kson_hash_from_lson(&sealed).unwrap();
+        assert_eq!(hash, sha256_hex(plain.as_bytes()));
+        let opened = decrypt(&sealed, "test-passphrase").unwrap();
+        assert_eq!(opened, plain);
+        assert!(decrypt(&sealed, "wrong-passphrase").is_err());
+        // Salt and nonce are random, so two seals of the same plaintext differ.
+        let again = encrypt(plain, "test-passphrase").unwrap();
+        assert_ne!(sealed, again);
+    }
+}
